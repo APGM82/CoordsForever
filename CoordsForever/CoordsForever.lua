@@ -309,21 +309,16 @@ local function RefreshHUD()
             hudArrow:Hide()
         elseif distance then
             if distance <= ARRIVE_DISTANCE then
-                -- se avisa una vez, la marca se queda
-                if not db.way.arrived then
-                    db.way.arrived = true
-                    local label = db.way.text
-                    if label ~= "" then
-                        Say("you have arrived: %s.", label)
-                    else
-                        Say("you have arrived.")
-                    end
-                    Say("the marker stays; |cffffd100/way clear|r removes it.")
+                local label = db.way.text
+                if label ~= "" then
+                    Say("you have arrived: %s.", label)
+                else
+                    Say("you have arrived.")
                 end
-                hudWay:SetText(L["arrived"])
+                ClearWaypoint()
+                hudWay:Hide()
                 hudArrow:Hide()
             else
-                db.way.arrived = nil
                 hudWay:SetFormattedText("%d m", distance)
                 hudArrow:SetRotation(turn or 0)
                 hudArrow:Show()

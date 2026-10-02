@@ -12,7 +12,6 @@ ns.L.esES = {
     ["waypoint: |cffffd100%.1f, %.1f|r in %s."] = "destino: |cffffd100%.1f, %.1f|r en %s.",
     ["you have arrived: %s."] = "has llegado: %s.",
     ["you have arrived."] = "has llegado al destino.",
-    ["the marker stays; |cffffd100/way clear|r removes it."] = "la marca sigue puesta; |cffffd100/way clear|r la quita.",
 
     ["commands:"] = "comandos:",
     ["  |cffffd100/way 49.2 57.2|r - marks that point on the map"] = "  |cffffd100/way 49.2 57.2|r - marca ese punto en el mapa",
@@ -47,7 +46,6 @@ ns.L.esES = {
 
     ["no coordinates"] = "sin coordenadas",
     ["waypoint in %s"] = "destino en %s",
-    ["arrived"] = "has llegado",
     ["Player"] = "Jugador",
     ["Cursor"] = "Cursor",
 }
@@ -61,7 +59,6 @@ ns.L.deDE = {
     ["waypoint: |cffffd100%.1f, %.1f|r in %s."] = "Ziel: |cffffd100%.1f, %.1f|r in %s.",
     ["you have arrived: %s."] = "angekommen: %s.",
     ["you have arrived."] = "du bist am Ziel.",
-    ["the marker stays; |cffffd100/way clear|r removes it."] = "die Markierung bleibt; |cffffd100/way clear|r entfernt sie.",
 
     ["commands:"] = "Befehle:",
     ["  |cffffd100/way 49.2 57.2|r - marks that point on the map"] = "  |cffffd100/way 49.2 57.2|r - markiert den Punkt auf der Karte",
@@ -96,7 +93,6 @@ ns.L.deDE = {
 
     ["no coordinates"] = "keine Koordinaten",
     ["waypoint in %s"] = "Ziel in %s",
-    ["arrived"] = "angekommen",
     ["Player"] = "Spieler",
     ["Cursor"] = "Mauszeiger",
 }
@@ -108,7 +104,6 @@ ns.L.frFR = {
     ["waypoint: |cffffd100%.1f, %.1f|r in %s."] = "destination : |cffffd100%.1f, %.1f|r a %s.",
     ["you have arrived: %s."] = "vous etes arrive : %s.",
     ["you have arrived."] = "vous etes arrive.",
-    ["the marker stays; |cffffd100/way clear|r removes it."] = "le repere reste ; |cffffd100/way clear|r l'efface.",
 
     ["commands:"] = "commandes :",
     ["  |cffffd100/way 49.2 57.2|r - marks that point on the map"] = "  |cffffd100/way 49.2 57.2|r - marque ce point sur la carte",
@@ -143,7 +138,6 @@ ns.L.frFR = {
 
     ["no coordinates"] = "pas de coordonnees",
     ["waypoint in %s"] = "destination : %s",
-    ["arrived"] = "arrive",
     ["Player"] = "Joueur",
     ["Cursor"] = "Curseur",
 }
@@ -155,7 +149,6 @@ ns.L.itIT = {
     ["waypoint: |cffffd100%.1f, %.1f|r in %s."] = "destinazione: |cffffd100%.1f, %.1f|r in %s.",
     ["you have arrived: %s."] = "sei arrivato: %s.",
     ["you have arrived."] = "sei arrivato a destinazione.",
-    ["the marker stays; |cffffd100/way clear|r removes it."] = "il segno resta; |cffffd100/way clear|r lo toglie.",
 
     ["commands:"] = "comandi:",
     ["  |cffffd100/way 49.2 57.2|r - marks that point on the map"] = "  |cffffd100/way 49.2 57.2|r - segna quel punto sulla mappa",
@@ -190,7 +183,6 @@ ns.L.itIT = {
 
     ["no coordinates"] = "nessuna coordinata",
     ["waypoint in %s"] = "destinazione in %s",
-    ["arrived"] = "arrivato",
     ["Player"] = "Giocatore",
     ["Cursor"] = "Cursore",
 }
@@ -202,7 +194,6 @@ ns.L.ptBR = {
     ["waypoint: |cffffd100%.1f, %.1f|r in %s."] = "destino: |cffffd100%.1f, %.1f|r em %s.",
     ["you have arrived: %s."] = "voce chegou: %s.",
     ["you have arrived."] = "voce chegou ao destino.",
-    ["the marker stays; |cffffd100/way clear|r removes it."] = "a marca continua; |cffffd100/way clear|r a remove.",
 
     ["commands:"] = "comandos:",
     ["  |cffffd100/way 49.2 57.2|r - marks that point on the map"] = "  |cffffd100/way 49.2 57.2|r - marca esse ponto no mapa",
@@ -237,7 +228,6 @@ ns.L.ptBR = {
 
     ["no coordinates"] = "sem coordenadas",
     ["waypoint in %s"] = "destino em %s",
-    ["arrived"] = "chegou",
     ["Player"] = "Jogador",
     ["Cursor"] = "Cursor",
 }
@@ -249,7 +239,6 @@ ns.L.ruRU = {
     ["waypoint: |cffffd100%.1f, %.1f|r in %s."] = "точка: |cffffd100%.1f, %.1f|r, %s.",
     ["you have arrived: %s."] = "вы на месте: %s.",
     ["you have arrived."] = "вы на месте.",
-    ["the marker stays; |cffffd100/way clear|r removes it."] = "метка остаётся; |cffffd100/way clear|r её убирает.",
 
     ["commands:"] = "команды:",
     ["  |cffffd100/way 49.2 57.2|r - marks that point on the map"] = "  |cffffd100/way 49.2 57.2|r - отмечает эту точку на карте",
@@ -284,7 +273,6 @@ ns.L.ruRU = {
 
     ["no coordinates"] = "нет координат",
     ["waypoint in %s"] = "точка: %s",
-    ["arrived"] = "на месте",
     ["Player"] = "Игрок",
     ["Cursor"] = "Курсор",
 }
@@ -296,7 +284,6 @@ ns.L.koKR = {
     ["waypoint: |cffffd100%.1f, %.1f|r in %s."] = "목적지: |cffffd100%.1f, %.1f|r, %s.",
     ["you have arrived: %s."] = "도착했습니다: %s.",
     ["you have arrived."] = "목적지에 도착했습니다.",
-    ["the marker stays; |cffffd100/way clear|r removes it."] = "표시는 남아 있습니다. |cffffd100/way clear|r로 지울 수 있습니다.",
 
     ["commands:"] = "명령어:",
     ["  |cffffd100/way 49.2 57.2|r - marks that point on the map"] = "  |cffffd100/way 49.2 57.2|r - 지도에 그 지점을 표시합니다",
@@ -331,7 +318,6 @@ ns.L.koKR = {
 
     ["no coordinates"] = "좌표 없음",
     ["waypoint in %s"] = "목적지: %s",
-    ["arrived"] = "도착",
     ["Player"] = "플레이어",
     ["Cursor"] = "커서",
 }
@@ -343,7 +329,6 @@ ns.L.zhCN = {
     ["waypoint: |cffffd100%.1f, %.1f|r in %s."] = "目的地：|cffffd100%.1f, %.1f|r，%s。",
     ["you have arrived: %s."] = "已到达：%s。",
     ["you have arrived."] = "已到达目的地。",
-    ["the marker stays; |cffffd100/way clear|r removes it."] = "标记会保留；|cffffd100/way clear|r 可清除。",
 
     ["commands:"] = "命令：",
     ["  |cffffd100/way 49.2 57.2|r - marks that point on the map"] = "  |cffffd100/way 49.2 57.2|r - 在地图上标记该点",
@@ -378,7 +363,6 @@ ns.L.zhCN = {
 
     ["no coordinates"] = "无坐标",
     ["waypoint in %s"] = "目的地：%s",
-    ["arrived"] = "已到达",
     ["Player"] = "玩家",
     ["Cursor"] = "光标",
 }
@@ -390,7 +374,6 @@ ns.L.zhTW = {
     ["waypoint: |cffffd100%.1f, %.1f|r in %s."] = "目的地：|cffffd100%.1f, %.1f|r，%s。",
     ["you have arrived: %s."] = "已抵達：%s。",
     ["you have arrived."] = "已抵達目的地。",
-    ["the marker stays; |cffffd100/way clear|r removes it."] = "標記會保留；|cffffd100/way clear|r 可清除。",
 
     ["commands:"] = "指令：",
     ["  |cffffd100/way 49.2 57.2|r - marks that point on the map"] = "  |cffffd100/way 49.2 57.2|r - 在地圖上標記該點",
@@ -425,7 +408,6 @@ ns.L.zhTW = {
 
     ["no coordinates"] = "無座標",
     ["waypoint in %s"] = "目的地：%s",
-    ["arrived"] = "已抵達",
     ["Player"] = "玩家",
     ["Cursor"] = "游標",
 }
