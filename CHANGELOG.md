@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.09
+
+- English zone names work with `/way` on every client, so waypoints from English guides work in any language.
+
 ## 1.08
 
 - Translated into all ten WoW client languages, with English as the default.

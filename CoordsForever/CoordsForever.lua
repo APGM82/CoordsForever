@@ -123,6 +123,14 @@ local function BuildZoneIndex()
             end
         end
     end
+
+    -- nombres en ingles
+    for uiMapID, name in pairs(ns.ZONES or {}) do
+        local key = Simplify(name)
+        if not zoneIndex[key] and C_Map.GetMapInfo(uiMapID) then
+            zoneIndex[key] = uiMapID
+        end
+    end
 end
 
 -- uiMapID, o nil y las candidatas
@@ -133,9 +141,10 @@ local function FindZone(name)
     if wanted == "" then return nil, {} end
     if zoneIndex[wanted] then return zoneIndex[wanted] end
 
-    local matches = {}
+    local matches, seen = {}, {}
     for key, uiMapID in pairs(zoneIndex) do
-        if string.find(key, wanted, 1, true) then
+        if string.find(key, wanted, 1, true) and not seen[uiMapID] then
+            seen[uiMapID] = true
             table.insert(matches, uiMapID)
         end
     end
