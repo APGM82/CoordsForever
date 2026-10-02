@@ -1,10 +1,10 @@
--- Coordenadas Forever
+-- Coords Forever
 
 local ADDON, ns = ...
 
 local UPDATE_INTERVAL = 0.1
 local ARRIVE_DISTANCE = 12      -- metros
-local PREFIX = "|cff8ad4ffCoordenadas Forever|r: "
+local PREFIX = "|cff8ad4ffCoords Forever|r: "
 
 local DEFAULTS = {
     hud      = true,

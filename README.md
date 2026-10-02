@@ -1,4 +1,4 @@
-# Coordenadas Forever
+# Coords Forever
 
 Player and cursor coordinates for World of Warcraft: Forever, plus waypoints with an arrow and distance.
 
