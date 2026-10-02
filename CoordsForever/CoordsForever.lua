@@ -1,6 +1,6 @@
 -- Coordenadas Forever
 
-local ADDON = ...
+local ADDON, ns = ...
 
 local UPDATE_INTERVAL = 0.1
 local ARRIVE_DISTANCE = 12      -- metros
@@ -26,8 +26,25 @@ local pin
 
 -- ---------------------------------------------------------------- utilidades
 
-local function Say(msg)
-    DEFAULT_CHAT_FRAME:AddMessage(PREFIX .. msg)
+-- la clave es el ingles; lo que no este traducido se ve en ingles
+local L = setmetatable({}, { __index = function(_, key) return key end })
+
+for key, value in pairs(ns.L[(GetLocale and GetLocale()) or "enUS"] or {}) do
+    L[key] = value
+end
+
+-- traducir antes de formatear, que el orden cambia segun el idioma
+local function Say(text, ...)
+    local message = L[text]
+    if select("#", ...) > 0 then
+        message = format(message, ...)
+    end
+    DEFAULT_CHAT_FRAME:AddMessage(PREFIX .. message)
+end
+
+-- diagnostico: siempre en ingles, para pegarlo en un informe de fallo
+local function SayRaw(message)
+    DEFAULT_CHAT_FRAME:AddMessage(PREFIX .. message)
 end
 
 -- 0-100, o nil si el jugador no esta en ese mapa
@@ -60,17 +77,31 @@ end
 
 -- "Los Baldíos" -> "losbaldios"
 local ACCENTS = {
-    ["á"] = "a", ["à"] = "a", ["â"] = "a", ["ä"] = "a", ["Á"] = "a", ["À"] = "a",
-    ["é"] = "e", ["è"] = "e", ["ê"] = "e", ["ë"] = "e", ["É"] = "e", ["È"] = "e",
-    ["í"] = "i", ["ì"] = "i", ["î"] = "i", ["ï"] = "i", ["Í"] = "i",
-    ["ó"] = "o", ["ò"] = "o", ["ô"] = "o", ["ö"] = "o", ["Ó"] = "o",
-    ["ú"] = "u", ["ù"] = "u", ["û"] = "u", ["ü"] = "u", ["Ú"] = "u", ["Ü"] = "u",
-    ["ñ"] = "n", ["Ñ"] = "n", ["ç"] = "c", ["Ç"] = "c",
+    ["á"] = "a", ["à"] = "a", ["â"] = "a", ["ä"] = "a", ["ã"] = "a",
+    ["Á"] = "a", ["À"] = "a", ["Â"] = "a", ["Ä"] = "a", ["Ã"] = "a",
+    ["é"] = "e", ["è"] = "e", ["ê"] = "e", ["ë"] = "e",
+    ["É"] = "e", ["È"] = "e", ["Ê"] = "e", ["Ë"] = "e",
+    ["í"] = "i", ["ì"] = "i", ["î"] = "i", ["ï"] = "i",
+    ["Í"] = "i", ["Ì"] = "i", ["Î"] = "i", ["Ï"] = "i",
+    ["ó"] = "o", ["ò"] = "o", ["ô"] = "o", ["ö"] = "o", ["õ"] = "o",
+    ["Ó"] = "o", ["Ò"] = "o", ["Ô"] = "o", ["Ö"] = "o", ["Õ"] = "o",
+    ["ú"] = "u", ["ù"] = "u", ["û"] = "u", ["ü"] = "u",
+    ["Ú"] = "u", ["Ù"] = "u", ["Û"] = "u", ["Ü"] = "u",
+    ["ñ"] = "n", ["Ñ"] = "n", ["ç"] = "c", ["Ç"] = "c", ["ß"] = "ss",
 }
+
+-- mayusculas cirilicas a minusculas
+local function LowerCyrillic(char)
+    local second = string.byte(char, 2)
+    if second == 129 then return "\209\145" end
+    if second < 160 then return "\208" .. string.char(second + 32) end
+    return "\209" .. string.char(second - 32)
+end
 
 local function Simplify(text)
     text = string.gsub(text, "[\195][\128-\191]", ACCENTS)
-    return (string.gsub(string.lower(text), "[^%w]", ""))
+    text = string.gsub(text, "\208[\129\144-\175]", LowerCyrillic)
+    return (string.gsub(string.lower(text), "[%s%p]", ""))
 end
 
 local zoneIndex
@@ -146,13 +177,13 @@ end
 local function ClearWaypoint(quiet)
     db.way = nil
     if pin then pin:Hide() end
-    if not quiet then Say("destino borrado.") end
+    if not quiet then Say("waypoint cleared.") end
 end
 
 local function SetWaypoint(x, y, label, uiMapID)
     uiMapID = uiMapID or TargetMapID()
     if not uiMapID then
-        Say("aqui no hay mapa al que anclar el destino.")
+        Say("there is no map here to anchor the waypoint to.")
         return
     end
 
@@ -160,9 +191,9 @@ local function SetWaypoint(x, y, label, uiMapID)
 
     local name = ZoneName(uiMapID)
     if label and label ~= "" then
-        Say(format("destino: |cffffd100%.1f, %.1f|r en %s (%s).", x, y, name, label))
+        Say("waypoint: |cffffd100%.1f, %.1f|r in %s (%s).", x, y, name, label)
     else
-        Say(format("destino: |cffffd100%.1f, %.1f|r en %s.", x, y, name))
+        Say("waypoint: |cffffd100%.1f, %.1f|r in %s.", x, y, name)
     end
 end
 
@@ -266,7 +297,7 @@ local function RefreshHUD()
     if x then
         hudText:SetFormattedText("|cffffd100%.1f, %.1f|r", x, y)
     else
-        hudText:SetText("|cff999999sin coordenadas|r")
+        hudText:SetText("|cff999999" .. L["no coordinates"] .. "|r")
     end
 
     local extraHeight = 0
@@ -274,7 +305,7 @@ local function RefreshHUD()
         local distance, elsewhere, turn = WaypointInfo()
 
         if elsewhere then
-            hudWay:SetFormattedText("destino en %s", ZoneName(db.way.map))
+            hudWay:SetFormattedText(L["waypoint in %s"], ZoneName(db.way.map))
             hudArrow:Hide()
         elseif distance then
             if distance <= ARRIVE_DISTANCE then
@@ -282,10 +313,14 @@ local function RefreshHUD()
                 if not db.way.arrived then
                     db.way.arrived = true
                     local label = db.way.text
-                    Say(label ~= "" and format("has llegado: %s.", label) or "has llegado al destino.")
-                    Say("la marca sigue puesta; |cffffd100/way borrar|r la quita.")
+                    if label ~= "" then
+                        Say("you have arrived: %s.", label)
+                    else
+                        Say("you have arrived.")
+                    end
+                    Say("the marker stays; |cffffd100/way clear|r removes it.")
                 end
-                hudWay:SetText("has llegado")
+                hudWay:SetText(L["arrived"])
                 hudArrow:Hide()
             else
                 db.way.arrived = nil
@@ -430,16 +465,52 @@ local function RefreshPin(map, shownMapID)
     pin:Show()
 end
 
+-- panel de coordenadas del juego: transparente mientras salen las nuestras
+local blizzardPanels = {}
+local lastScan = 0
+
+local function FindBlizzardPanels(frame, probe, depth)
+    if depth > 6 then return end
+    for _, child in ipairs({ frame:GetChildren() }) do
+        if child[probe] == WorldMapCoordsPanelMixin[probe] then
+            table.insert(blizzardPanels, child)
+        else
+            FindBlizzardPanels(child, probe, depth + 1)
+        end
+    end
+end
+
+local function SyncBlizzardPanels(map)
+    local mixin = _G.WorldMapCoordsPanelMixin
+    if not mixin then return end
+
+    if #blizzardPanels == 0 and GetTime() - lastScan > 1 then
+        lastScan = GetTime()
+        local probe
+        for key, value in pairs(mixin) do
+            if type(value) == "function" then probe = key break end
+        end
+        if probe then FindBlizzardPanels(map, probe, 1) end
+    end
+
+    local alpha = (db.map or db.cursor) and 0 or 1
+    for _, panel in ipairs(blizzardPanels) do
+        if panel:GetAlpha() ~= alpha then panel:SetAlpha(alpha) end
+    end
+end
+
 local function RefreshMapTexts()
     local map = _G.WorldMapFrame
     if not mapPlayerText or not map or not map:IsShown() then return end
+
+    SyncBlizzardPanels(map)
 
     local shownMapID = (map.GetMapID and map:GetMapID()) or CurrentMapID()
 
     if db.map then
         local x, y = PlayerCoords(shownMapID)
         if x then
-            mapPlayerText:SetFormattedText("Jugador: |cffffd100%.1f, %.1f|r", x, y)
+            mapPlayerText:SetFormattedText("%s: |cffffd100%.1f, %.1f|r", L["Player"], x, y)
         else
             mapPlayerText:SetText("")
         end
@@ -452,7 +523,7 @@ local function RefreshMapTexts()
         if container and container.GetNormalizedCursorPosition and container:IsMouseOver() then
             local cx, cy = container:GetNormalizedCursorPosition()
             if cx and cy and cx >= 0 and cx <= 1 and cy >= 0 and cy <= 1 then
-                mapCursorText:SetFormattedText("Cursor: |cff8ad4ff%.1f, %.1f|r", cx * 100, cy * 100)
+                mapCursorText:SetFormattedText("%s: |cff8ad4ff%.1f, %.1f|r", L["Cursor"], cx * 100, cy * 100)
             else
                 mapCursorText:SetText("")
             end
@@ -480,48 +551,48 @@ end
 -- ------------------------------------------------------------ comandos
 
 local function PrintHelp()
-    Say("comandos:")
-    Say("  |cffffd100/way 49.2 57.2|r - marca ese punto en el mapa")
-    Say("  |cffffd100/way 49.2 57.2 Hgarth|r - igual, con nombre")
-    Say("  |cffffd100/way Los Baldios 46 74|r - en otra zona")
-    Say("  |cffffd100/way borrar|r - quita la marca")
-    Say("  |cffffd100/way estado|r - dice que sabe el addon (para diagnosticar)")
-    Say("  |cffffd100/coords|r - muestra u oculta el recuadro en pantalla")
-    Say("  |cffffd100/coords lock|r - fija o suelta el recuadro")
-    Say("  |cffffd100/coords reset|r - devuelve el recuadro arriba al centro")
-    Say("  |cffffd100/coords scale <0.5-3>|r - tamano del recuadro")
-    Say("  |cffffd100/coords pos|r - dice donde esta el recuadro guardado")
-    Say("  |cffffd100/coords map|r - coordenadas del jugador en el mapa")
-    Say("  |cffffd100/coords cursor|r - coordenadas del cursor en el mapa")
+    Say("commands:")
+    Say("  |cffffd100/way 49.2 57.2|r - marks that point on the map")
+    Say("  |cffffd100/way 49.2 57.2 camp|r - the same, with a label")
+    Say("  |cffffd100/way The Barrens 46 74|r - in another zone")
+    Say("  |cffffd100/way clear|r - removes the marker")
+    Say("  |cffffd100/way status|r - what the addon knows, for bug reports")
+    Say("  |cffffd100/coords|r - shows or hides the box")
+    Say("  |cffffd100/coords lock|r - locks or unlocks the box")
+    Say("  |cffffd100/coords reset|r - moves the box back to the top")
+    Say("  |cffffd100/coords scale <0.5-3>|r - box size")
+    Say("  |cffffd100/coords pos|r - where the box is saved")
+    Say("  |cffffd100/coords map|r - your coordinates on the map")
+    Say("  |cffffd100/coords cursor|r - cursor coordinates on the map")
 end
 
 local function PrintState()
     local map = _G.WorldMapFrame
     local w = db.way
 
-    Say("estado:")
+    SayRaw("status:")
 
     if w then
-        Say(format("  destino: |cffffd100%.1f, %.1f|r (%s) en mapa %s (%s)",
-            w.x, w.y, w.text ~= "" and w.text or "sin nombre",
+        SayRaw(format("  waypoint: |cffffd100%.1f, %.1f|r (%s) on map %s (%s)",
+            w.x, w.y, w.text ~= "" and w.text or "no label",
             tostring(w.map), ZoneName(w.map)))
     else
-        Say("  destino: |cffff5555ninguno guardado|r")
+        SayRaw("  waypoint: |cffff5555none saved|r")
     end
 
     local playerMap = CurrentMapID()
-    Say(format("  tu mapa: %s (%s)", tostring(playerMap), ZoneName(playerMap)))
+    SayRaw(format("  your map: %s (%s)", tostring(playerMap), ZoneName(playerMap)))
 
     local shown = map and map:IsShown() and map.GetMapID and map:GetMapID()
-    Say(format("  mapa abierto: %s", shown and format("%s (%s)", tostring(shown), ZoneName(shown)) or "cerrado"))
+    SayRaw(format("  open map: %s", shown and format("%s (%s)", tostring(shown), ZoneName(shown)) or "closed"))
 
-    Say(format("  marca: creada=%s mostrada=%s |cff8ad4ffefectiva=%s|r",
-        pin and "si" or "|cffff5555NO|r",
-        (pin and pin:IsShown()) and "si" or "no",
-        (pin and pin.IsVisible and pin:IsVisible()) and "si" or "|cffff5555no|r"))
+    SayRaw(format("  marker: created=%s shown=%s |cff8ad4ffvisible=%s|r",
+        pin and "yes" or "|cffff5555NO|r",
+        (pin and pin:IsShown()) and "yes" or "no",
+        (pin and pin.IsVisible and pin:IsVisible()) and "yes" or "|cffff5555no|r"))
 
     if pin then
-        Say(format("  nivel=%s estrato=%s alfa=%.2f escala=%.2f",
+        SayRaw(format("  level=%s strata=%s alpha=%.2f scale=%.2f",
             tostring(pin:GetFrameLevel()), tostring(pin:GetFrameStrata()),
             pin:GetEffectiveAlpha() or -1, pin:GetEffectiveScale() or -1))
 
@@ -534,29 +605,29 @@ local function PrintState()
             local halfWidth = (container:GetWidth() or 0) / 2
             local halfHeight = (container:GetHeight() or 0) / 2
             local inside = math.abs(px - cx) <= halfWidth and math.abs(py - cy) <= halfHeight
-            Say(format("  marca en %.0f,%.0f | ventana centro %.0f,%.0f | %s",
+            SayRaw(format("  marker at %.0f,%.0f | view centre %.0f,%.0f | %s",
                 px, py, cx, cy,
-                inside and "|cff55ff55dentro de lo visible|r" or "|cffff5555FUERA de lo visible|r"))
+                inside and "|cff55ff55inside the view|r" or "|cffff5555OUTSIDE the view|r"))
         else
-            Say(format("  posicion: marca=%s ventana=%s",
-                px and "si" or "|cffff5555sin posicion|r", cx and "si" or "sin posicion"))
+            SayRaw(format("  position: marker=%s view=%s",
+                px and "yes" or "|cffff5555no position|r", cx and "yes" or "no position"))
         end
     end
 
     local child = map and map.ScrollContainer and map.ScrollContainer.Child
     local container = map and map.ScrollContainer
-    Say(format("  lienzo: %s | contenedor: %s",
-        child and format("%.0f x %.0f", child:GetWidth() or 0, child:GetHeight() or 0) or "no existe",
-        container and format("%.0f x %.0f", container:GetWidth() or 0, container:GetHeight() or 0) or "no existe"))
+    SayRaw(format("  canvas: %s | container: %s",
+        child and format("%.0f x %.0f", child:GetWidth() or 0, child:GetHeight() or 0) or "missing",
+        container and format("%.0f x %.0f", container:GetWidth() or 0, container:GetHeight() or 0) or "missing"))
 
     if map then
         local _, width, height = CanvasFor(map)
-        Say(format("  medida que se usa: %s",
-            width and format("%.0f x %.0f", width, height) or "|cffff5555ninguna sirve|r"))
+        SayRaw(format("  size in use: %s",
+            width and format("%.0f x %.0f", width, height) or "|cffff5555none usable|r"))
     end
 
     if not (map and map:IsShown()) then
-        Say("  |cff999999(con el mapa cerrado estas medidas salen a cero; abrelo y repite)|r")
+        SayRaw("  |cff999999(sizes are zero while the map is closed; open it and try again)|r")
     end
 end
 
@@ -564,13 +635,13 @@ local function HandleWay(msg)
     local text = strtrim(msg or "")
     local lowered = strlower(text)
 
-    if lowered == "estado" then
+    if lowered == "status" or lowered == "estado" then
         PrintState()
         return
     end
 
     if lowered == "" then
-        Say("uso: |cffffd100/way 49.2 57.2|r (o |cffffd100/way borrar|r).")
+        Say("usage: |cffffd100/way 49.2 57.2|r (or |cffffd100/way clear|r).")
         return
     end
 
@@ -581,7 +652,7 @@ local function HandleWay(msg)
 
     local x, y, label, zone = ParseCoords(text)
     if not x then
-        Say("no entiendo esas coordenadas. Prueba |cffffd100/way 49.2 57.2|r.")
+        Say("I don't understand those coordinates. Try |cffffd100/way 49.2 57.2|r.")
         return
     end
 
@@ -591,15 +662,15 @@ local function HandleWay(msg)
         uiMapID, matches = FindZone(zone)
         if not uiMapID then
             if #matches == 0 then
-                Say(format("no conozco ninguna zona llamada |cffffd100%s|r.", zone))
+                Say("I don't know any zone called |cffffd100%s|r.", zone)
             else
                 local names = {}
                 for i, id in ipairs(matches) do
                     if i > 6 then break end
                     table.insert(names, ZoneName(id))
                 end
-                Say(format("|cffffd100%s|r encaja con varias zonas: %s. Escribe mas del nombre.",
-                    zone, table.concat(names, ", ")))
+                Say("|cffffd100%s|r matches several zones: %s. Type more of the name.",
+                    zone, table.concat(names, ", "))
             end
             return
         end
@@ -615,43 +686,43 @@ local function HandleSlash(msg)
     if cmd == nil or cmd == "" then
         db.hud = not db.hud
         RefreshHUD()
-        Say(db.hud and "recuadro visible." or "recuadro oculto.")
+        Say(db.hud and "box shown." or "box hidden.")
 
     elseif cmd == "way" then
         HandleWay(string.sub(text, 5))
 
     elseif cmd == "lock" then
         db.locked = not db.locked
-        Say(db.locked and "recuadro fijado." or "recuadro suelto: arrastralo con el boton izquierdo.")
+        Say(db.locked and "box locked." or "box unlocked: drag it with the left button.")
 
     elseif cmd == "reset" then
         db.point, db.relPoint = DEFAULTS.point, DEFAULTS.relPoint
         db.x, db.y, db.scale = DEFAULTS.x, DEFAULTS.y, DEFAULTS.scale
         ApplyHUDPosition()
-        Say("recuadro devuelto arriba al centro.")
+        Say("box moved back to the top.")
 
     elseif cmd == "pos" then
-        Say(format("recuadro anclado por %s a %s de la pantalla, desplazado |cffffd100%.0f, %.0f|r.",
+        SayRaw(format("box anchored by %s to %s of the screen, offset |cffffd100%.0f, %.0f|r.",
             tostring(db.point), tostring(db.relPoint), db.x, db.y))
-        Say("se guarda al salir del juego, para este personaje, y vuelve sola al entrar.")
+        SayRaw("saved per character when you log out, restored when you log in.")
 
     elseif cmd == "scale" then
         local value = tonumber(arg)
         if value and value >= 0.5 and value <= 3 then
             db.scale = value
             ApplyHUDPosition()
-            Say(format("tamano puesto a %.2f.", value))
+            Say("box size set to %.2f.", value)
         else
-            Say("uso: /coords scale <0.5-3>")
+            Say("usage: |cffffd100/coords scale <0.5-3>|r")
         end
 
     elseif cmd == "map" then
         db.map = not db.map
-        Say(db.map and "coordenadas del jugador en el mapa: si." or "coordenadas del jugador en el mapa: no.")
+        Say(db.map and "your coordinates on the map: on." or "your coordinates on the map: off.")
 
     elseif cmd == "cursor" then
         db.cursor = not db.cursor
-        Say(db.cursor and "coordenadas del cursor: si." or "coordenadas del cursor: no.")
+        Say(db.cursor and "cursor coordinates: on." or "cursor coordinates: off.")
 
     else
         PrintHelp()

@@ -1,9 +1,20 @@
 ## Interface: 16001
 ## Title: |cff8ad4ffCoordenadas Forever|r
-## Notes: Coordenadas del jugador y del cursor en el mapa, mas un recuadro movible en pantalla.
-## Notes-enUS: Player and cursor coordinates on the world map, plus a movable on-screen readout.
-## Version: 1.07
+## Version: 1.08
 ## SavedVariablesPerCharacter: CoordsForeverDB
 ## IconTexture: Interface\Icons\INV_Misc_Map_01
 
+## Notes: Player and cursor coordinates on the world map, a movable on-screen box, and waypoints with arrow and distance.
+## Notes-esES: Coordenadas del jugador y del cursor en el mapa, un recuadro movible en pantalla y destinos con flecha y distancia.
+## Notes-esMX: Coordenadas del jugador y del cursor en el mapa, un recuadro movible en pantalla y destinos con flecha y distancia.
+## Notes-deDE: Koordinaten von Spieler und Mauszeiger auf der Weltkarte, ein verschiebbares Fenster und Ziele mit Pfeil und Entfernung.
+## Notes-frFR: Coordonnees du joueur et du curseur sur la carte, un cadre deplacable a l'ecran et des destinations avec fleche et distance.
+## Notes-itIT: Coordinate del giocatore e del cursore sulla mappa, un riquadro spostabile e destinazioni con freccia e distanza.
+## Notes-ptBR: Coordenadas do jogador e do cursor no mapa, um quadro movel na tela e destinos com seta e distancia.
+## Notes-ruRU: Координаты игрока и курсора на карте мира, перемещаемое окно на экране и точки назначения со стрелкой и расстоянием.
+## Notes-koKR: 세계 지도에 플레이어와 커서 좌표를 표시하고, 이동 가능한 화면 창과 화살표와 거리가 있는 목적지를 제공합니다.
+## Notes-zhCN: 在世界地图上显示玩家和光标坐标，提供可移动的屏幕窗口，以及带箭头和距离的目的地。
+## Notes-zhTW: 在世界地圖上顯示玩家與游標座標，提供可移動的螢幕視窗，以及帶箭頭與距離的目的地。
+
+Locales.lua
 CoordsForever.lua
