@@ -9,6 +9,7 @@ Player and cursor coordinates for World of Warcraft: Forever, plus waypoints wit
 - A small box on screen with your zone and coordinates. Drag it wherever you like; its position is saved per character.
 - Waypoints: `/way 46 74` puts a marker on the map, and the box shows an arrow and the distance until you get there. The waypoint clears itself when you arrive.
 - Waypoints in other zones: `/way The Barrens 46 74`. Zone names work in your client's language and in English on every client, so waypoints copied from English guides work too. Case and accents don't matter, and part of the name is enough if it only matches one zone.
+- Labels: anything you write after the coordinates becomes the waypoint's label, shown on the map marker and in the arrival message. `/way 46 74 Burned tower` or `/way The Barrens 46 74 Burned tower`.
 
 The game's own coordinates panel on the world map is hidden while the addon's coordinates are on, so they don't show twice. Turn both of ours off (`/coords map` and `/coords cursor`) and the game's panel comes back.
 
@@ -19,6 +20,7 @@ The game's own coordinates panel on the world map is hidden while the addon's co
 | `/way 46 74` | Waypoint in the zone you are in, or the one open on the map |
 | `/way 46 74 camp` | Same, with a label |
 | `/way The Barrens 46 74` | Waypoint in another zone |
+| `/way #1413 46.1 74.9` | Waypoint by map number, as copied from Wowhead |
 | `/way clear` | Remove the waypoint |
 | `/way status` | Print what the addon knows, for bug reports |
 | `/coords` | Show or hide the box |

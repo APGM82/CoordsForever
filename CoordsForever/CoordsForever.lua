@@ -229,7 +229,9 @@ local function ParseCoords(text)
     local x, y = numbers[1], numbers[2]
     if x < 0 or x > 100 or y < 0 or y > 100 then return nil end
 
-    return x, y, strtrim(string.sub(text, lastEnd + 1)), strtrim(string.sub(text, 1, firstStart - 1))
+    local label = string.gsub(string.sub(text, lastEnd + 1), "^[%s%]%),;]+", "")
+    local zone = string.gsub(string.sub(text, 1, firstStart - 1), "[%s%[%(]+$", "")
+    return x, y, strtrim(label), strtrim(zone)
 end
 
 -- ------------------------------------------------------- recuadro en pantalla
@@ -654,14 +656,25 @@ local function HandleWay(msg)
         return
     end
 
+    -- formato de Wowhead: /way #1413 46.1 74.9
+    local uiMapID
+    local mapNumber, rest = string.match(text, "^#(%d+)%s+(.*)$")
+    if mapNumber then
+        uiMapID = tonumber(mapNumber)
+        if not C_Map.GetMapInfo(uiMapID) then
+            Say("I don't know any zone called |cffffd100%s|r.", "#" .. mapNumber)
+            return
+        end
+        text = rest
+    end
+
     local x, y, label, zone = ParseCoords(text)
     if not x then
         Say("I don't understand those coordinates. Try |cffffd100/way 49.2 57.2|r.")
         return
     end
 
-    local uiMapID
-    if zone ~= "" then
+    if not uiMapID and Simplify(zone) ~= "" then
         local matches
         uiMapID, matches = FindZone(zone)
         if not uiMapID then

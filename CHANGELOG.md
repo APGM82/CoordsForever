@@ -3,6 +3,8 @@
 ## 1.09
 
 - English zone names work with `/way` on every client, so waypoints from English guides work in any language.
+- `/way` accepts the map number format copied from Wowhead: `/way #1413 46.1 74.9`.
+- Brackets and parentheses around the coordinates are ignored: `/way [46.1, 74.9]`.
 
 ## 1.08
 
