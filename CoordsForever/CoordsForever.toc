@@ -1,0 +1,9 @@
+## Interface: 16001
+## Title: |cff8ad4ffCoordenadas Forever|r
+## Notes: Coordenadas del jugador y del cursor en el mapa, mas un recuadro movible en pantalla.
+## Notes-enUS: Player and cursor coordinates on the world map, plus a movable on-screen readout.
+## Version: 1.07
+## SavedVariablesPerCharacter: CoordsForeverDB
+## IconTexture: Interface\Icons\INV_Misc_Map_01
+
+CoordsForever.lua
