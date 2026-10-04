@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.10
+
+- The waypoint now shows on the minimap too. If it's too far to fit, an arrow on the edge points towards it. Works with the rotating minimap and with square minimaps from other addons.
+- Hover the minimap marker to see the label, zone and distance.
+- New options window (`/coords options`) with the box, world map and minimap settings. It has a button to centre the box horizontally and the list of commands on the side.
+- Minimap button: left click opens the options, right click shows or hides the box. Drag it to move it around the minimap. Hide it from the options or with `/coords button`, which also brings it back.
+- `/coords minimap` turns the waypoint on the minimap on or off.
+
 ## 1.09
 
 - English zone names work with `/way` on every client, so waypoints from English guides work in any language.

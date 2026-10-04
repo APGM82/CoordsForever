@@ -10,6 +10,9 @@ local DEFAULTS = {
     hud      = true,
     map      = true,
     cursor   = true,
+    minimap  = true,
+    button   = true,
+    buttonAngle = 200,
     locked   = false,
     scale    = 1,
 
@@ -22,7 +25,15 @@ local DEFAULTS = {
 local db
 local hud, hudZone, hudText, hudWay, hudArrow, driver
 local mapPlayerText, mapCursorText
-local pin
+local pin, miniPin
+local GetCVar = (C_CVar and C_CVar.GetCVar) or GetCVar
+local minimapIndoors
+
+-- ancho del minimapa en metros por zoom, como en HereBeDragons
+local MINIMAP_SIZE = {
+    indoor  = { [0] = 300, 240, 180, 120, 80, 50 },
+    outdoor = { [0] = 466 + 2/3, 400, 333 + 1/3, 266 + 2/3, 200, 133 + 1/3 },
+}
 
 -- ---------------------------------------------------------------- utilidades
 
@@ -155,7 +166,7 @@ end
 
 -- -------------------------------------------------------- punto de destino
 
--- metros, si esta en otra zona, y giro de la flecha
+-- metros, si esta en otra zona, giro de la flecha y desplazamiento
 local function WaypointInfo()
     local w = db.way
     if not w then return nil end
@@ -180,12 +191,13 @@ local function WaypointInfo()
     local bearing = math.atan2(dy, dx)
     local facing = (GetPlayerFacing and GetPlayerFacing()) or 0
 
-    return distance, false, bearing - facing
+    return distance, false, bearing - facing, dx, dy
 end
 
 local function ClearWaypoint(quiet)
     db.way = nil
     if pin then pin:Hide() end
+    if miniPin then miniPin:Hide() end
     if not quiet then Say("waypoint cleared.") end
 end
 
@@ -379,6 +391,21 @@ local function CanvasFor(map)
     return nil
 end
 
+-- rombo dorado con borde
+local function AddDiamond(frame, size)
+    local border = frame:CreateTexture(nil, "BACKGROUND")
+    border:SetColorTexture(0, 0, 0, 0.9)
+    border:SetSize(size, size)
+    border:SetPoint("CENTER")
+    border:SetRotation(math.pi / 4)
+
+    local core = frame:CreateTexture(nil, "ARTWORK")
+    core:SetColorTexture(1, 0.82, 0, 1)
+    core:SetSize(size - 5, size - 5)
+    core:SetPoint("CENTER")
+    core:SetRotation(math.pi / 4)
+end
+
 local function BuildPin(map)
     local canvas = (map.ScrollContainer and map.ScrollContainer.Child)
         or map.ScrollContainer or map
@@ -389,18 +416,7 @@ local function BuildPin(map)
     pin:SetFrameStrata("TOOLTIP")   -- si no, las capas del mapa la tapan
     pin:SetFrameLevel((canvas:GetFrameLevel() or 0) + 500)
 
-    -- rombo dorado con borde
-    local border = pin:CreateTexture(nil, "BACKGROUND")
-    border:SetColorTexture(0, 0, 0, 0.9)
-    border:SetSize(14, 14)
-    border:SetPoint("CENTER")
-    border:SetRotation(math.pi / 4)
-
-    local core = pin:CreateTexture(nil, "ARTWORK")
-    core:SetColorTexture(1, 0.82, 0, 1)
-    core:SetSize(9, 9)
-    core:SetPoint("CENTER")
-    core:SetRotation(math.pi / 4)
+    AddDiamond(pin, 14)
 
     pin.label = pin:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     pin.label:SetPoint("TOP", pin, "BOTTOM", 0, -1)
@@ -543,33 +559,462 @@ local function RefreshMapTexts()
     RefreshPin(map, shownMapID)
 end
 
+-- -------------------------------------------------------------- minimapa
+
+-- bajo techo los dos zooms guardados no coinciden con el del minimapa
+local checkingZoom
+local function UpdateMinimapIndoors()
+    if checkingZoom then return end
+    checkingZoom = true
+    local zoom = Minimap:GetZoom()
+    if GetCVar("minimapZoom") == GetCVar("minimapInsideZoom") then
+        Minimap:SetZoom(zoom < 2 and zoom + 1 or zoom - 1)
+    end
+    minimapIndoors = tonumber(GetCVar("minimapZoom")) ~= Minimap:GetZoom()
+    Minimap:SetZoom(zoom)
+    checkingZoom = false
+end
+
+local function ShowMinimapTooltip(self)
+    local w = db.way
+    if not w then return end
+
+    GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+    if w.text ~= "" then
+        GameTooltip:AddLine(w.text)
+        GameTooltip:AddLine(format("%.1f, %.1f", w.x, w.y), 1, 1, 1)
+    else
+        GameTooltip:AddLine(format("%.1f, %.1f", w.x, w.y))
+    end
+    GameTooltip:AddLine(ZoneName(w.map), 0.8, 0.8, 0.8)
+
+    local distance = WaypointInfo()
+    if distance then
+        GameTooltip:AddLine(format("%d m", distance), 1, 0.82, 0)
+    end
+    GameTooltip:Show()
+end
+
+local function BuildMinimapPin()
+    miniPin = CreateFrame("Frame", "CoordsForeverMinimapPin", Minimap)
+    miniPin:SetSize(22, 22)
+    miniPin:SetFrameStrata("HIGH")   -- por encima de los botones del borde
+
+    -- solo el raton encima; los clics siguen yendo al minimapa
+    miniPin:EnableMouse(true)
+    if miniPin.SetMouseClickEnabled then miniPin:SetMouseClickEnabled(false) end
+    miniPin:SetScript("OnEnter", ShowMinimapTooltip)
+    miniPin:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    miniPin:SetScript("OnHide", function(self)
+        if GameTooltip:IsOwned(self) then GameTooltip:Hide() end
+    end)
+
+    miniPin.dot = CreateFrame("Frame", nil, miniPin)
+    miniPin.dot:SetAllPoints()
+    AddDiamond(miniPin.dot, 12)
+
+    miniPin.arrow = miniPin:CreateTexture(nil, "OVERLAY")
+    miniPin.arrow:SetSize(22, 22)
+    miniPin.arrow:SetPoint("CENTER")
+    miniPin.arrow:SetTexture("Interface\\MINIMAP\\MiniMap-DeadArrow")
+
+    miniPin:Hide()
+end
+
+local function RefreshMinimapPin()
+    if not miniPin then return end
+    if not db.minimap or not db.way or not Minimap:IsVisible() then
+        miniPin:Hide()
+        return
+    end
+
+    local distance, _, _, dx, dy = WaypointInfo()
+    local sizes = MINIMAP_SIZE[minimapIndoors and "indoor" or "outdoor"]
+    local size = sizes[Minimap:GetZoom()]
+    if not distance or not dx or not size then
+        miniPin:Hide()
+        return
+    end
+
+    local radius = Minimap:GetWidth() / 2
+    local scale = radius / (size / 2)
+
+    -- en el mundo x va al norte e y al oeste
+    local px, py = -dy * scale, dx * scale
+    if GetCVar("rotateMinimap") == "1" then
+        local facing = (GetPlayerFacing and GetPlayerFacing()) or 0
+        local s, c = math.sin(-facing), math.cos(-facing)
+        px, py = px * c - py * s, px * s + py * c
+    end
+
+    local reach
+    if GetMinimapShape and GetMinimapShape() == "SQUARE" then
+        reach = math.max(math.abs(px), math.abs(py))
+    else
+        reach = math.sqrt(px * px + py * py)
+    end
+
+    -- fuera o junto al borde, donde tapan los botones: flecha
+    local edge = radius - 20
+    if reach > edge then
+        px, py = px * edge / reach, py * edge / reach
+        miniPin.arrow:SetRotation(math.atan2(py, px) - math.pi / 2)
+        miniPin.arrow:Show()
+        miniPin.dot:Hide()
+    else
+        miniPin.arrow:Hide()
+        miniPin.dot:Show()
+    end
+
+    miniPin:ClearAllPoints()
+    miniPin:SetPoint("CENTER", Minimap, "CENTER", px, py)
+    miniPin:Show()
+end
+
 -- ---------------------------------------------------------------- refresco
 
 local elapsedSince = 0
 local function OnUpdate(_, elapsed)
+    -- cada frame, si no al girar el minimapa va a saltos
+    RefreshMinimapPin()
+
     elapsedSince = elapsedSince + elapsed
     if elapsedSince < UPDATE_INTERVAL then return end
     elapsedSince = 0
+    if miniPin and miniPin:IsShown() and GameTooltip:IsOwned(miniPin) then
+        ShowMinimapTooltip(miniPin)
+    end
     RefreshHUD()
     RefreshMapTexts()
+end
+
+-- ---------------------------------------------------------------- opciones
+
+-- ayuda: en el chat y en la ventana de opciones
+local HELP = {
+    "  |cffffd100/way 49.2 57.2|r - marks that point on the map",
+    "  |cffffd100/way 49.2 57.2 camp|r - the same, with a label",
+    "  |cffffd100/way The Barrens 46 74|r - in another zone",
+    "  |cffffd100/way clear|r - removes the marker",
+    "  |cffffd100/way status|r - what the addon knows, for bug reports",
+    "  |cffffd100/coords|r - shows or hides the box",
+    "  |cffffd100/coords lock|r - locks or unlocks the box",
+    "  |cffffd100/coords reset|r - moves the box back to the top",
+    "  |cffffd100/coords scale <0.5-3>|r - box size",
+    "  |cffffd100/coords pos|r - where the box is saved",
+    "  |cffffd100/coords map|r - your coordinates on the map",
+    "  |cffffd100/coords cursor|r - cursor coordinates on the map",
+    "  |cffffd100/coords minimap|r - waypoint on the minimap",
+    "  |cffffd100/coords button|r - shows or hides the minimap button",
+    "  |cffffd100/coords options|r - options window",
+}
+
+local options, minimapButton
+local UpdateMinimapButton
+
+local function ResetHUD()
+    db.point, db.relPoint = DEFAULTS.point, DEFAULTS.relPoint
+    db.x, db.y, db.scale = DEFAULTS.x, DEFAULTS.y, DEFAULTS.scale
+    ApplyHUDPosition()
+end
+
+-- misma altura, centrado en horizontal
+local function CenterHUD()
+    local ratio = UIParent:GetEffectiveScale() / hud:GetEffectiveScale()
+    db.point, db.relPoint = "TOP", "TOP"
+    db.x, db.y = 0, hud:GetTop() - UIParent:GetTop() * ratio
+    ApplyHUDPosition()
+end
+
+local function SetHUDScale(value)
+    value = math.floor(value * 10 + 0.5) / 10
+    db.scale = math.max(0.5, math.min(3, value))
+    ApplyHUDPosition()
+end
+
+local function RefreshOptions()
+    if not options or not options:IsShown() then return end
+    for _, control in ipairs(options.controls) do
+        control.Update()
+    end
+end
+
+-- recuadro con borde
+local function Panel(parent, r, g, b, a)
+    local edge = parent:CreateTexture(nil, "BACKGROUND")
+    edge:SetColorTexture(0.30, 0.52, 0.68, 0.9)
+    local face = parent:CreateTexture(nil, "BORDER")
+    face:SetColorTexture(r, g, b, a)
+    face:SetPoint("TOPLEFT", edge, "TOPLEFT", 1, -1)
+    face:SetPoint("BOTTOMRIGHT", edge, "BOTTOMRIGHT", -1, 1)
+    return edge, face
+end
+
+local function MakeCheck(parent, labelKey, key, onChange)
+    local check = CreateFrame("Button", nil, parent)
+    check:SetSize(18, 18)
+
+    local edge, face = Panel(check, 0.06, 0.09, 0.12, 1)
+    edge:SetAllPoints(check)
+
+    local mark = check:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    mark:SetPoint("CENTER", 0, 0)
+
+    local label = check:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    label:SetPoint("LEFT", check, "RIGHT", 6, 0)
+    label:SetText(L[labelKey])
+    label:SetTextColor(0.88, 0.92, 0.95)
+
+    -- el texto tambien se puede pulsar
+    check:SetHitRectInsets(0, -(label:GetStringWidth() + 6), 0, 0)
+
+    check:SetScript("OnClick", function()
+        db[key] = not db[key]
+        if onChange then onChange() end
+        RefreshOptions()
+    end)
+    check:SetScript("OnEnter", function() face:SetColorTexture(0.12, 0.20, 0.27, 1) end)
+    check:SetScript("OnLeave", function() face:SetColorTexture(0.06, 0.09, 0.12, 1) end)
+
+    check.Update = function()
+        mark:SetText(db[key] and "|cff66dd66x|r" or "")
+    end
+    return check
+end
+
+local function MakeButton(parent, width, labelKey, onClick)
+    local btn = CreateFrame("Button", nil, parent)
+    btn:SetSize(width, 22)
+
+    local edge, face = Panel(btn, 0.12, 0.20, 0.27, 1)
+    edge:SetAllPoints(btn)
+
+    local label = btn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    label:SetPoint("CENTER")
+    label:SetText(L[labelKey])
+
+    btn:SetScript("OnEnter", function() face:SetColorTexture(0.20, 0.32, 0.42, 1) end)
+    btn:SetScript("OnLeave", function() face:SetColorTexture(0.12, 0.20, 0.27, 1) end)
+    btn:SetScript("OnClick", onClick)
+    return btn
+end
+
+local function MakeHeader(parent, labelKey, y)
+    local header = parent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    header:SetPoint("TOPLEFT", 16, y)
+    header:SetText(L[labelKey])
+    return header
+end
+
+local function BuildOptions()
+    options = CreateFrame("Frame", "CoordsForeverOptions", UIParent)
+    options:SetSize(590, 340)
+    options:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
+    options:SetFrameStrata("DIALOG")
+    options:SetClampedToScreen(true)
+    options:SetMovable(true)
+    options:EnableMouse(true)
+    options:RegisterForDrag("LeftButton")
+    options:SetScript("OnDragStart", options.StartMoving)
+    options:SetScript("OnDragStop", options.StopMovingOrSizing)
+    options:SetScript("OnShow", RefreshOptions)
+    options:Hide()
+    table.insert(UISpecialFrames, "CoordsForeverOptions")   -- se cierra con Esc
+
+    local edge = options:CreateTexture(nil, "BACKGROUND")
+    edge:SetAllPoints()
+    edge:SetColorTexture(0.30, 0.52, 0.68, 1)
+    local face = options:CreateTexture(nil, "BORDER")
+    face:SetPoint("TOPLEFT", 2, -2)
+    face:SetPoint("BOTTOMRIGHT", -2, 2)
+    face:SetColorTexture(0.04, 0.06, 0.08, 0.96)
+
+    local title = options:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    title:SetPoint("TOP", 0, -12)
+    title:SetText("|cff8ad4ffCoords Forever|r")
+
+    local close = MakeButton(options, 22, "x", function() options:Hide() end)
+    close:SetPoint("TOPRIGHT", -8, -8)
+
+    options.controls = {}
+    local function Add(control, y)
+        control:SetPoint("TOPLEFT", 16, y)
+        table.insert(options.controls, control)
+    end
+
+    MakeHeader(options, "On-screen box", -40)
+    Add(MakeCheck(options, "Show the box", "hud", RefreshHUD), -62)
+    Add(MakeCheck(options, "Lock the box", "locked"), -86)
+
+    local sizeLabel = options:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    sizeLabel:SetPoint("TOPLEFT", 16, -116)
+    sizeLabel:SetText(L["Box size"])
+    sizeLabel:SetTextColor(0.88, 0.92, 0.95)
+
+    local plus = MakeButton(options, 22, "+", function()
+        SetHUDScale(db.scale + 0.1)
+        RefreshOptions()
+    end)
+    plus:SetPoint("TOPLEFT", 252, -112)
+
+    local sizeValue = options:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    sizeValue:SetPoint("RIGHT", plus, "LEFT", -6, 0)
+    sizeValue:SetWidth(32)
+    sizeValue:SetTextColor(1, 1, 1)
+    sizeValue.Update = function() sizeValue:SetFormattedText("%.1f", db.scale) end
+    table.insert(options.controls, sizeValue)
+
+    local minus = MakeButton(options, 22, "-", function()
+        SetHUDScale(db.scale - 0.1)
+        RefreshOptions()
+    end)
+    minus:SetPoint("RIGHT", sizeValue, "LEFT", -6, 0)
+
+    local reset = MakeButton(options, 140, "Reset position", function()
+        ResetHUD()
+        RefreshOptions()
+    end)
+    reset:SetPoint("TOPLEFT", 16, -142)
+
+    local center = MakeButton(options, 110, "Center", CenterHUD)
+    center:SetPoint("TOPLEFT", 164, -142)
+
+    MakeHeader(options, "World map", -180)
+    Add(MakeCheck(options, "Your coordinates", "map"), -202)
+    Add(MakeCheck(options, "Cursor coordinates", "cursor"), -226)
+
+    -- comandos a la derecha
+    local divider = options:CreateTexture(nil, "ARTWORK")
+    divider:SetColorTexture(0.30, 0.52, 0.68, 0.5)
+    divider:SetPoint("TOPLEFT", 290, -40)
+    divider:SetPoint("BOTTOMLEFT", 290, 16)
+    divider:SetWidth(1)
+
+    local commandsHeader = options:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    commandsHeader:SetPoint("TOPLEFT", 306, -40)
+    commandsHeader:SetText(L["Commands"])
+
+    local lines = {}
+    for _, line in ipairs(HELP) do
+        table.insert(lines, strtrim(L[line]))
+    end
+    local commands = options:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    commands:SetPoint("TOPLEFT", 306, -62)
+    commands:SetWidth(268)
+    commands:SetJustifyH("LEFT")
+    commands:SetSpacing(3)
+    commands:SetTextColor(0.88, 0.92, 0.95)
+    commands:SetText(table.concat(lines, "\n"))
+    options:SetHeight(math.max(340, commands:GetStringHeight() + 80))
+
+    MakeHeader(options, "Minimap", -262)
+    Add(MakeCheck(options, "Waypoint on the minimap", "minimap"), -284)
+    Add(MakeCheck(options, "Minimap button", "button", function() UpdateMinimapButton() end), -308)
+end
+
+local function ToggleOptions()
+    if not options then BuildOptions() end
+    if options:IsShown() then
+        options:Hide()
+    else
+        options:Show()
+    end
+end
+
+-- ------------------------------------------------------- boton del minimapa
+
+-- alrededor del minimapa, redondo o cuadrado
+local function PlaceMinimapButton()
+    local angle = math.rad(db.buttonAngle or DEFAULTS.buttonAngle)
+    local x, y = math.cos(angle), math.sin(angle)
+    if GetMinimapShape and GetMinimapShape() == "SQUARE" then
+        local reach = math.max(math.abs(x), math.abs(y))
+        x, y = x / reach, y / reach
+    end
+    local radius = Minimap:GetWidth() / 2 + 5
+    minimapButton:ClearAllPoints()
+    minimapButton:SetPoint("CENTER", Minimap, "CENTER", x * radius, y * radius)
+end
+
+function UpdateMinimapButton()
+    if not minimapButton then return end
+    if db.button then
+        PlaceMinimapButton()
+        minimapButton:Show()
+    else
+        minimapButton:Hide()
+    end
+end
+
+local function FollowCursor()
+    local mx, my = Minimap:GetCenter()
+    local px, py = GetCursorPosition()
+    local scale = Minimap:GetEffectiveScale()
+    db.buttonAngle = math.deg(math.atan2(py / scale - my, px / scale - mx)) % 360
+    PlaceMinimapButton()
+end
+
+local function BuildMinimapButton()
+    minimapButton = CreateFrame("Button", "CoordsForeverMinimapButton", Minimap)
+    minimapButton:SetSize(31, 31)
+    minimapButton:SetFrameStrata("MEDIUM")
+    minimapButton:SetFrameLevel(8)
+    minimapButton:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+    minimapButton:RegisterForDrag("LeftButton")
+    minimapButton:SetHighlightTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight")
+
+    local background = minimapButton:CreateTexture(nil, "BACKGROUND")
+    background:SetTexture("Interface\\Minimap\\UI-Minimap-Background")
+    background:SetSize(20, 20)
+    background:SetPoint("TOPLEFT", 7, -5)
+
+    local icon = minimapButton:CreateTexture(nil, "ARTWORK")
+    icon:SetTexture("Interface\\Icons\\INV_Misc_Map_01")
+    icon:SetSize(17, 17)
+    icon:SetPoint("TOPLEFT", 7, -6)
+    icon:SetTexCoord(0.05, 0.95, 0.05, 0.95)
+
+    local border = minimapButton:CreateTexture(nil, "OVERLAY")
+    border:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
+    border:SetSize(53, 53)
+    border:SetPoint("TOPLEFT")
+
+    minimapButton:SetScript("OnClick", function(_, mouse)
+        if mouse == "RightButton" then
+            db.hud = not db.hud
+            RefreshHUD()
+            RefreshOptions()
+        else
+            ToggleOptions()
+        end
+    end)
+    minimapButton:SetScript("OnDragStart", function(self)
+        self:SetScript("OnUpdate", FollowCursor)
+        GameTooltip:Hide()
+    end)
+    minimapButton:SetScript("OnDragStop", function(self)
+        self:SetScript("OnUpdate", nil)
+    end)
+    minimapButton:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+        GameTooltip:AddLine("Coords Forever", 0.54, 0.83, 1)
+        GameTooltip:AddLine(L["Left click: options"], 1, 1, 1)
+        GameTooltip:AddLine(L["Right click: show or hide the box"], 1, 1, 1)
+        GameTooltip:AddLine(L["Drag: move the button"], 0.8, 0.8, 0.8)
+        GameTooltip:Show()
+    end)
+    minimapButton:SetScript("OnLeave", function() GameTooltip:Hide() end)
+
+    UpdateMinimapButton()
 end
 
 -- ------------------------------------------------------------ comandos
 
 local function PrintHelp()
     Say("commands:")
-    Say("  |cffffd100/way 49.2 57.2|r - marks that point on the map")
-    Say("  |cffffd100/way 49.2 57.2 camp|r - the same, with a label")
-    Say("  |cffffd100/way The Barrens 46 74|r - in another zone")
-    Say("  |cffffd100/way clear|r - removes the marker")
-    Say("  |cffffd100/way status|r - what the addon knows, for bug reports")
-    Say("  |cffffd100/coords|r - shows or hides the box")
-    Say("  |cffffd100/coords lock|r - locks or unlocks the box")
-    Say("  |cffffd100/coords reset|r - moves the box back to the top")
-    Say("  |cffffd100/coords scale <0.5-3>|r - box size")
-    Say("  |cffffd100/coords pos|r - where the box is saved")
-    Say("  |cffffd100/coords map|r - your coordinates on the map")
-    Say("  |cffffd100/coords cursor|r - cursor coordinates on the map")
+    for _, line in ipairs(HELP) do
+        Say(line)
+    end
 end
 
 local function PrintState()
@@ -619,6 +1064,19 @@ local function PrintState()
                 px and "yes" or "|cffff5555no position|r", cx and "yes" or "no position"))
         end
     end
+
+    local miniX, miniY
+    if miniPin and miniPin:IsShown() then
+        local _, _, _, ox, oy = miniPin:GetPoint()
+        miniX, miniY = ox, oy
+    end
+    SayRaw(format("  minimap: %s zoom=%s %s rotate=%s shape=%s",
+        miniX and format("%s at %.0f,%.0f of %.0f strata=%s",
+            miniPin.arrow:IsShown() and "arrow" or "diamond", miniX, miniY,
+            Minimap:GetWidth() / 2, miniPin:GetFrameStrata()) or "hidden",
+        tostring(Minimap:GetZoom()), minimapIndoors and "indoor" or "outdoor",
+        tostring(GetCVar("rotateMinimap")),
+        tostring(GetMinimapShape and GetMinimapShape() or "ROUND")))
 
     local child = map and map.ScrollContainer and map.ScrollContainer.Child
     local container = map and map.ScrollContainer
@@ -712,10 +1170,16 @@ local function HandleSlash(msg)
         db.locked = not db.locked
         Say(db.locked and "box locked." or "box unlocked: drag it with the left button.")
 
+    elseif cmd == "button" then
+        db.button = not db.button
+        UpdateMinimapButton()
+        Say(db.button and "minimap button: on." or "minimap button: off.")
+
+    elseif cmd == "options" or cmd == "config" then
+        ToggleOptions()
+
     elseif cmd == "reset" then
-        db.point, db.relPoint = DEFAULTS.point, DEFAULTS.relPoint
-        db.x, db.y, db.scale = DEFAULTS.x, DEFAULTS.y, DEFAULTS.scale
-        ApplyHUDPosition()
+        ResetHUD()
         Say("box moved back to the top.")
 
     elseif cmd == "pos" then
@@ -726,9 +1190,8 @@ local function HandleSlash(msg)
     elseif cmd == "scale" then
         local value = tonumber(arg)
         if value and value >= 0.5 and value <= 3 then
-            db.scale = value
-            ApplyHUDPosition()
-            Say("box size set to %.2f.", value)
+            SetHUDScale(value)
+            Say("box size set to %.2f.", db.scale)
         else
             Say("usage: |cffffd100/coords scale <0.5-3>|r")
         end
@@ -741,9 +1204,15 @@ local function HandleSlash(msg)
         db.cursor = not db.cursor
         Say(db.cursor and "cursor coordinates: on." or "cursor coordinates: off.")
 
+    elseif cmd == "minimap" then
+        db.minimap = not db.minimap
+        Say(db.minimap and "waypoint on the minimap: on." or "waypoint on the minimap: off.")
+
     else
         PrintHelp()
     end
+
+    RefreshOptions()
 end
 
 -- ------------------------------------------------------------ arranque
@@ -782,7 +1251,13 @@ loader:SetScript("OnEvent", function(self, event, name)
             EventUtil.ContinueOnAddOnLoaded("Blizzard_WorldMap", BuildMapTexts)
         end
 
+        BuildMinimapPin()
+        BuildMinimapButton()
+        UpdateMinimapIndoors()
         driver = CreateFrame("Frame")
+        driver:RegisterEvent("MINIMAP_UPDATE_ZOOM")
+        driver:RegisterEvent("PLAYER_ENTERING_WORLD")
+        driver:SetScript("OnEvent", UpdateMinimapIndoors)
         driver:SetScript("OnUpdate", OnUpdate)
         RefreshHUD()
 
