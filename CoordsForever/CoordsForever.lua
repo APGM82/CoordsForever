@@ -44,6 +44,8 @@ for key, value in pairs(ns.L[(GetLocale and GetLocale()) or "enUS"] or {}) do
     L[key] = value
 end
 
+local S = ns.style
+
 -- traducir antes de formatear, que el orden cambia segun el idioma
 local function Say(text, ...)
     local message = L[text]
@@ -268,8 +270,11 @@ local function BuildHUD()
 
     local bg = hud:CreateTexture(nil, "BACKGROUND")
     bg:SetAllPoints()
-    bg:SetColorTexture(0, 0, 0, 0.5)
+    bg:SetColorTexture(1, 1, 1, 1)
+    S.Gradient(bg, "VERTICAL", 0, 0, 0, 0.70, 0.08, 0.07, 0.06, 0.55)
     hud.bg = bg
+    S.Lines(hud, 0, "BORDER"):SetColor(0.50, 0.37, 0.18, 0.85)
+    S.Lines(hud, 1, "BORDER"):SetColor(0, 0, 0, 0.6)
 
     hudZone = hud:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
     hudZone:SetPoint("TOP", hud, "TOP", 0, -6)
@@ -739,23 +744,9 @@ local function RefreshOptions()
     end
 end
 
--- recuadro con borde
-local function Panel(parent, r, g, b, a)
-    local edge = parent:CreateTexture(nil, "BACKGROUND")
-    edge:SetColorTexture(0.30, 0.52, 0.68, 0.9)
-    local face = parent:CreateTexture(nil, "BORDER")
-    face:SetColorTexture(r, g, b, a)
-    face:SetPoint("TOPLEFT", edge, "TOPLEFT", 1, -1)
-    face:SetPoint("BOTTOMRIGHT", edge, "BOTTOMRIGHT", -1, 1)
-    return edge, face
-end
-
 local function MakeCheck(parent, labelKey, key, onChange)
     local check = CreateFrame("Button", nil, parent)
     check:SetSize(18, 18)
-
-    local edge, face = Panel(check, 0.06, 0.09, 0.12, 1)
-    edge:SetAllPoints(check)
 
     local mark = check:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     mark:SetPoint("CENTER", 0, 0)
@@ -763,7 +754,7 @@ local function MakeCheck(parent, labelKey, key, onChange)
     local label = check:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     label:SetPoint("LEFT", check, "RIGHT", 6, 0)
     label:SetText(L[labelKey])
-    label:SetTextColor(0.88, 0.92, 0.95)
+    label:SetTextColor(unpack(S.colors.text))
 
     -- el texto tambien se puede pulsar
     check:SetHitRectInsets(0, -(label:GetStringWidth() + 6), 0, 0)
@@ -773,11 +764,10 @@ local function MakeCheck(parent, labelKey, key, onChange)
         if onChange then onChange() end
         RefreshOptions()
     end)
-    check:SetScript("OnEnter", function() face:SetColorTexture(0.12, 0.20, 0.27, 1) end)
-    check:SetScript("OnLeave", function() face:SetColorTexture(0.06, 0.09, 0.12, 1) end)
+    S.Check(check)
 
     check.Update = function()
-        mark:SetText(db[key] and "|cff66dd66x|r" or "")
+        mark:SetText(db[key] and S.TICK or "")
     end
     return check
 end
@@ -786,21 +776,17 @@ local function MakeButton(parent, width, labelKey, onClick)
     local btn = CreateFrame("Button", nil, parent)
     btn:SetSize(width, 22)
 
-    local edge, face = Panel(btn, 0.12, 0.20, 0.27, 1)
-    edge:SetAllPoints(btn)
-
     local label = btn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     label:SetPoint("CENTER")
     label:SetText(L[labelKey])
 
-    btn:SetScript("OnEnter", function() face:SetColorTexture(0.20, 0.32, 0.42, 1) end)
-    btn:SetScript("OnLeave", function() face:SetColorTexture(0.12, 0.20, 0.27, 1) end)
+    label:SetTextColor(unpack(S.colors.text))
     btn:SetScript("OnClick", onClick)
-    return btn
+    return S.Button(btn)
 end
 
 local function MakeHeader(parent, labelKey, y)
-    local header = parent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    local header = S.Header(parent:CreateFontString(nil, "OVERLAY", "GameFontNormal"), 16)
     header:SetPoint("TOPLEFT", 16, y)
     header:SetText(L[labelKey])
     return header
@@ -821,17 +807,7 @@ local function BuildOptions()
     options:Hide()
     table.insert(UISpecialFrames, "CoordsForeverOptions")   -- se cierra con Esc
 
-    local edge = options:CreateTexture(nil, "BACKGROUND")
-    edge:SetAllPoints()
-    edge:SetColorTexture(0.30, 0.52, 0.68, 1)
-    local face = options:CreateTexture(nil, "BORDER")
-    face:SetPoint("TOPLEFT", 2, -2)
-    face:SetPoint("BOTTOMRIGHT", -2, 2)
-    face:SetColorTexture(0.04, 0.06, 0.08, 0.96)
-
-    local title = options:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    title:SetPoint("TOP", 0, -12)
-    title:SetText("|cff8ad4ffCoords Forever|r")
+    S.Window(options, "Coords Forever", -32)
 
     local close = MakeButton(options, 22, "x", function() options:Hide() end)
     close:SetPoint("TOPRIGHT", -8, -8)
@@ -849,7 +825,7 @@ local function BuildOptions()
     local sizeLabel = options:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     sizeLabel:SetPoint("TOPLEFT", 16, -116)
     sizeLabel:SetText(L["Box size"])
-    sizeLabel:SetTextColor(0.88, 0.92, 0.95)
+    sizeLabel:SetTextColor(unpack(S.colors.text))
 
     local plus = MakeButton(options, 22, "+", function()
         SetHUDScale(db.scale + 0.1)
@@ -885,12 +861,12 @@ local function BuildOptions()
 
     -- comandos a la derecha
     local divider = options:CreateTexture(nil, "ARTWORK")
-    divider:SetColorTexture(0.30, 0.52, 0.68, 0.5)
+    divider:SetColorTexture(0.73, 0.57, 0.17, 0.35)
     divider:SetPoint("TOPLEFT", 290, -40)
     divider:SetPoint("BOTTOMLEFT", 290, 16)
     divider:SetWidth(1)
 
-    local commandsHeader = options:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    local commandsHeader = S.Header(options:CreateFontString(nil, "OVERLAY", "GameFontNormal"), 16)
     commandsHeader:SetPoint("TOPLEFT", 306, -40)
     commandsHeader:SetText(L["Commands"])
 
@@ -903,7 +879,7 @@ local function BuildOptions()
     commands:SetWidth(268)
     commands:SetJustifyH("LEFT")
     commands:SetSpacing(3)
-    commands:SetTextColor(0.88, 0.92, 0.95)
+    commands:SetTextColor(unpack(S.colors.text))
     commands:SetText(table.concat(lines, "\n"))
     options:SetHeight(math.max(340, commands:GetStringHeight() + 80))
 

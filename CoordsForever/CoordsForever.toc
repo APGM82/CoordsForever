@@ -17,5 +17,6 @@
 ## Notes-zhTW: 在世界地圖上顯示玩家與游標座標，提供可移動的螢幕視窗，以及帶箭頭與距離的目的地。
 
 Locales.lua
+Style.lua
 Zones.lua
 CoordsForever.lua
