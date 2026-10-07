@@ -5,6 +5,8 @@ local ADDON, ns = ...
 local UPDATE_INTERVAL = 0.1
 local ARRIVE_DISTANCE = 12      -- metros
 local PREFIX = "|cff8ad4ffCoords Forever|r: "
+local MEDIA = "Interface\\AddOns\\CoordsForever\\Media\\"
+local ARROW_MIN, ARROW_MAX = 12, 48
 
 local DEFAULTS = {
     hud      = true,
@@ -15,6 +17,7 @@ local DEFAULTS = {
     buttonAngle = 200,
     locked   = false,
     scale    = 1,
+    arrow    = 16,
 
     point    = "TOP",
     relPoint = "TOP",
@@ -358,7 +361,13 @@ local function RefreshHUD()
 
         if db.way then
             hudWay:Show()
-            extraHeight = hudWay:GetStringHeight() + 5
+            -- la flecha va a la izquierda de la distancia; si es mas alta que el texto, el texto baja
+            local size, textHeight = db.arrow, hudWay:GetStringHeight()
+            local drop = hudArrow:IsShown() and math.max(0, (size - textHeight) / 2) or 0
+            hudArrow:SetSize(size, size)
+            hudWay:ClearAllPoints()
+            hudWay:SetPoint("TOP", hudText, "BOTTOM", hudArrow:IsShown() and (size + 3) / 2 or 0, -3 - drop)
+            extraHeight = textHeight + drop * 2 + 5
         end
     else
         hudWay:Hide()
@@ -367,7 +376,7 @@ local function RefreshHUD()
 
     local width = math.max(hudZone:GetStringWidth(), hudText:GetStringWidth())
     if db.way then
-        width = math.max(width, hudWay:GetStringWidth() + 22)
+        width = math.max(width, hudWay:GetStringWidth() + db.arrow + 6)
     end
     hud:SetWidth(math.max(110, width + 22))
     hud:SetHeight(hudZone:GetStringHeight() + hudText:GetStringHeight() + 16 + extraHeight)
@@ -396,19 +405,52 @@ local function CanvasFor(map)
     return nil
 end
 
--- rombo dorado con borde
-local function AddDiamond(frame, size)
+-- punto dorado con borde y un aro que late
+local function AddMarker(frame, size)
     local border = frame:CreateTexture(nil, "BACKGROUND")
-    border:SetColorTexture(0, 0, 0, 0.9)
+    border:SetTexture(MEDIA .. "circle.tga")
+    border:SetVertexColor(0, 0, 0, 0.9)
     border:SetSize(size, size)
     border:SetPoint("CENTER")
-    border:SetRotation(math.pi / 4)
 
     local core = frame:CreateTexture(nil, "ARTWORK")
-    core:SetColorTexture(1, 0.82, 0, 1)
-    core:SetSize(size - 5, size - 5)
+    core:SetTexture(MEDIA .. "circle.tga")
+    core:SetVertexColor(1, 0.82, 0, 1)
+    core:SetSize(size - 4, size - 4)
     core:SetPoint("CENTER")
-    core:SetRotation(math.pi / 4)
+
+    local shine = frame:CreateTexture(nil, "ARTWORK", nil, 1)
+    shine:SetTexture(MEDIA .. "circle.tga")
+    shine:SetVertexColor(1, 1, 0.85, 0.55)
+    shine:SetSize(size * 0.35, size * 0.35)
+    shine:SetPoint("CENTER", -size * 0.12, size * 0.12)
+
+    local ring = frame:CreateTexture(nil, "OVERLAY")
+    ring:SetTexture(MEDIA .. "ring.tga")
+    ring:SetVertexColor(1, 0.82, 0, 1)
+    ring:SetSize(size * 2, size * 2)
+    ring:SetPoint("CENTER")
+    ring:SetAlpha(0)
+
+    local pulse = ring:CreateAnimationGroup()
+    pulse:SetLooping("REPEAT")
+    local grow = pulse:CreateAnimation("Scale")
+    grow:SetDuration(1.4)
+    grow:SetSmoothing("OUT")
+    if grow.SetScaleFrom then
+        grow:SetScaleFrom(0.45, 0.45)
+        grow:SetScaleTo(1, 1)
+    else
+        grow:SetScale(2.2, 2.2)
+    end
+    local fade = pulse:CreateAnimation("Alpha")
+    fade:SetDuration(1.4)
+    fade:SetFromAlpha(0.9)
+    fade:SetToAlpha(0)
+    fade:SetSmoothing("IN")
+    frame:HookScript("OnShow", function() pulse:Play() end)
+    frame:HookScript("OnHide", function() pulse:Stop() end)
+    if frame:IsVisible() then pulse:Play() end
 end
 
 local function BuildPin(map)
@@ -421,7 +463,7 @@ local function BuildPin(map)
     pin:SetFrameStrata("TOOLTIP")   -- si no, las capas del mapa la tapan
     pin:SetFrameLevel((canvas:GetFrameLevel() or 0) + 500)
 
-    AddDiamond(pin, 14)
+    AddMarker(pin, 14)
 
     pin.label = pin:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     pin.label:SetPoint("TOP", pin, "BOTTOM", 0, -1)
@@ -616,7 +658,7 @@ local function BuildMinimapPin()
 
     miniPin.dot = CreateFrame("Frame", nil, miniPin)
     miniPin.dot:SetAllPoints()
-    AddDiamond(miniPin.dot, 12)
+    AddMarker(miniPin.dot, 12)
 
     miniPin.arrow = miniPin:CreateTexture(nil, "OVERLAY")
     miniPin.arrow:SetSize(22, 22)
@@ -706,6 +748,7 @@ local HELP = {
     "  |cffffd100/coords lock|r - locks or unlocks the box",
     "  |cffffd100/coords reset|r - moves the box back to the top",
     "  |cffffd100/coords scale <0.5-3>|r - box size",
+    "  |cffffd100/coords arrow <12-48>|r - arrow size",
     "  |cffffd100/coords pos|r - where the box is saved",
     "  |cffffd100/coords map|r - your coordinates on the map",
     "  |cffffd100/coords cursor|r - cursor coordinates on the map",
@@ -735,6 +778,11 @@ local function SetHUDScale(value)
     value = math.floor(value * 10 + 0.5) / 10
     db.scale = math.max(0.5, math.min(3, value))
     ApplyHUDPosition()
+end
+
+local function SetArrowSize(value)
+    db.arrow = math.max(ARROW_MIN, math.min(ARROW_MAX, math.floor(value / 4 + 0.5) * 4))
+    if hud then RefreshHUD() end
 end
 
 local function RefreshOptions()
@@ -794,7 +842,7 @@ end
 
 local function BuildOptions()
     options = CreateFrame("Frame", "CoordsForeverOptions", UIParent)
-    options:SetSize(590, 340)
+    options:SetSize(590, 366)
     options:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
     options:SetFrameStrata("DIALOG")
     options:SetClampedToScreen(true)
@@ -846,18 +894,42 @@ local function BuildOptions()
     end)
     minus:SetPoint("RIGHT", sizeValue, "LEFT", -6, 0)
 
+    local arrowLabel = options:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    arrowLabel:SetPoint("TOPLEFT", 16, -142)
+    arrowLabel:SetText(L["Arrow size"])
+    arrowLabel:SetTextColor(unpack(S.colors.text))
+
+    local arrowPlus = MakeButton(options, 22, "+", function()
+        SetArrowSize(db.arrow + 4)
+        RefreshOptions()
+    end)
+    arrowPlus:SetPoint("TOPLEFT", 252, -138)
+
+    local arrowValue = options:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    arrowValue:SetPoint("RIGHT", arrowPlus, "LEFT", -6, 0)
+    arrowValue:SetWidth(32)
+    arrowValue:SetTextColor(1, 1, 1)
+    arrowValue.Update = function() arrowValue:SetText(db.arrow) end
+    table.insert(options.controls, arrowValue)
+
+    local arrowMinus = MakeButton(options, 22, "-", function()
+        SetArrowSize(db.arrow - 4)
+        RefreshOptions()
+    end)
+    arrowMinus:SetPoint("RIGHT", arrowValue, "LEFT", -6, 0)
+
     local reset = MakeButton(options, 140, "Reset position", function()
         ResetHUD()
         RefreshOptions()
     end)
-    reset:SetPoint("TOPLEFT", 16, -142)
+    reset:SetPoint("TOPLEFT", 16, -168)
 
     local center = MakeButton(options, 110, "Center", CenterHUD)
-    center:SetPoint("TOPLEFT", 164, -142)
+    center:SetPoint("TOPLEFT", 164, -168)
 
-    MakeHeader(options, "World map", -180)
-    Add(MakeCheck(options, "Your coordinates", "map"), -202)
-    Add(MakeCheck(options, "Cursor coordinates", "cursor"), -226)
+    MakeHeader(options, "World map", -206)
+    Add(MakeCheck(options, "Your coordinates", "map"), -228)
+    Add(MakeCheck(options, "Cursor coordinates", "cursor"), -252)
 
     -- comandos a la derecha
     local divider = options:CreateTexture(nil, "ARTWORK")
@@ -881,11 +953,11 @@ local function BuildOptions()
     commands:SetSpacing(3)
     commands:SetTextColor(unpack(S.colors.text))
     commands:SetText(table.concat(lines, "\n"))
-    options:SetHeight(math.max(340, commands:GetStringHeight() + 80))
+    options:SetHeight(math.max(366, commands:GetStringHeight() + 80))
 
-    MakeHeader(options, "Minimap", -262)
-    Add(MakeCheck(options, "Waypoint on the minimap", "minimap"), -284)
-    Add(MakeCheck(options, "Minimap button", "button", function() UpdateMinimapButton() end), -308)
+    MakeHeader(options, "Minimap", -288)
+    Add(MakeCheck(options, "Waypoint on the minimap", "minimap"), -310)
+    Add(MakeCheck(options, "Minimap button", "button", function() UpdateMinimapButton() end), -334)
 end
 
 local function ToggleOptions()
@@ -1048,7 +1120,7 @@ local function PrintState()
     end
     SayRaw(format("  minimap: %s zoom=%s %s rotate=%s shape=%s",
         miniX and format("%s at %.0f,%.0f of %.0f strata=%s",
-            miniPin.arrow:IsShown() and "arrow" or "diamond", miniX, miniY,
+            miniPin.arrow:IsShown() and "arrow" or "dot", miniX, miniY,
             Minimap:GetWidth() / 2, miniPin:GetFrameStrata()) or "hidden",
         tostring(Minimap:GetZoom()), minimapIndoors and "indoor" or "outdoor",
         tostring(GetCVar("rotateMinimap")),
@@ -1170,6 +1242,15 @@ local function HandleSlash(msg)
             Say("box size set to %.2f.", db.scale)
         else
             Say("usage: |cffffd100/coords scale <0.5-3>|r")
+        end
+
+    elseif cmd == "arrow" then
+        local value = tonumber(arg)
+        if value and value >= ARROW_MIN and value <= ARROW_MAX then
+            SetArrowSize(value)
+            Say("arrow size set to %d.", db.arrow)
+        else
+            Say("usage: |cffffd100/coords arrow <12-48>|r")
         end
 
     elseif cmd == "map" then

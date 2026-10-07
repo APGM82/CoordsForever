@@ -29,6 +29,7 @@ The game's own coordinates panel on the world map is hidden while the addon's co
 | `/coords lock` | Lock or unlock the box |
 | `/coords reset` | Move the box back to the top of the screen |
 | `/coords scale 1.5` | Box size, from 0.5 to 3 |
+| `/coords arrow 24` | Waypoint arrow size in the box, from 12 to 48 |
 | `/coords map` | Toggle your coordinates on the map |
 | `/coords cursor` | Toggle the cursor coordinates on the map |
 | `/coords minimap` | Toggle the waypoint on the minimap |
