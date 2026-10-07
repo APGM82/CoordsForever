@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.11
+
+- New look shared with the other Forever addons: the options window is dark glass with bronze lines, buttons have relief and a gold edge under the mouse, and ticks are gold. The on-screen box has a bronze edge.
+- The waypoint on the world map and the minimap is a gold dot with a ring pulsing out of it, instead of the diamond.
+- The arrow next to the waypoint distance can be bigger or smaller, from 12 to 48, in the options or with `/coords arrow 24`.
+
 ## 1.10
 
 - The waypoint now shows on the minimap too. If it's too far to fit, an arrow on the edge points towards it. Works with the rotating minimap and with square minimaps from other addons.
