@@ -18,6 +18,8 @@ local DEFAULTS = {
     locked   = false,
     scale    = 1,
     arrow    = 16,
+    hideBG   = false,
+    hideDungeons = false,
 
     point    = "TOP",
     relPoint = "TOP",
@@ -314,8 +316,16 @@ local function ApplyHUDPosition()
     hud:SetScale(db.scale)
 end
 
+-- el recuadro se esconde solo donde el usuario no lo quiere
+local function HiddenHere()
+    local _, kind = IsInInstance()
+    if kind == "pvp" or kind == "arena" then return db.hideBG end
+    if kind == "party" or kind == "raid" then return db.hideDungeons end
+    return false
+end
+
 local function RefreshHUD()
-    if not db.hud then
+    if not db.hud or HiddenHere() then
         hud:Hide()
         return
     end
@@ -746,6 +756,8 @@ local HELP = {
     "  |cffffd100/way status|r - what the addon knows, for bug reports",
     "  |cffffd100/coords|r - shows or hides the box",
     "  |cffffd100/coords lock|r - locks or unlocks the box",
+    "  |cffffd100/coords bg|r - hide the box in battlegrounds",
+    "  |cffffd100/coords dungeons|r - hide the box in dungeons and raids",
     "  |cffffd100/coords reset|r - moves the box back to the top",
     "  |cffffd100/coords scale <0.5-3>|r - box size",
     "  |cffffd100/coords arrow <12-48>|r - arrow size",
@@ -842,7 +854,7 @@ end
 
 local function BuildOptions()
     options = CreateFrame("Frame", "CoordsForeverOptions", UIParent)
-    options:SetSize(590, 366)
+    options:SetSize(590, 414)
     options:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
     options:SetFrameStrata("DIALOG")
     options:SetClampedToScreen(true)
@@ -869,9 +881,11 @@ local function BuildOptions()
     MakeHeader(options, "On-screen box", -40)
     Add(MakeCheck(options, "Show the box", "hud", RefreshHUD), -62)
     Add(MakeCheck(options, "Lock the box", "locked"), -86)
+    Add(MakeCheck(options, "Hide in battlegrounds", "hideBG", RefreshHUD), -110)
+    Add(MakeCheck(options, "Hide in dungeons and raids", "hideDungeons", RefreshHUD), -134)
 
     local sizeLabel = options:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    sizeLabel:SetPoint("TOPLEFT", 16, -116)
+    sizeLabel:SetPoint("TOPLEFT", 16, -164)
     sizeLabel:SetText(L["Box size"])
     sizeLabel:SetTextColor(unpack(S.colors.text))
 
@@ -879,7 +893,7 @@ local function BuildOptions()
         SetHUDScale(db.scale + 0.1)
         RefreshOptions()
     end)
-    plus:SetPoint("TOPLEFT", 252, -112)
+    plus:SetPoint("TOPLEFT", 252, -160)
 
     local sizeValue = options:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     sizeValue:SetPoint("RIGHT", plus, "LEFT", -6, 0)
@@ -895,7 +909,7 @@ local function BuildOptions()
     minus:SetPoint("RIGHT", sizeValue, "LEFT", -6, 0)
 
     local arrowLabel = options:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    arrowLabel:SetPoint("TOPLEFT", 16, -142)
+    arrowLabel:SetPoint("TOPLEFT", 16, -190)
     arrowLabel:SetText(L["Arrow size"])
     arrowLabel:SetTextColor(unpack(S.colors.text))
 
@@ -903,7 +917,7 @@ local function BuildOptions()
         SetArrowSize(db.arrow + 4)
         RefreshOptions()
     end)
-    arrowPlus:SetPoint("TOPLEFT", 252, -138)
+    arrowPlus:SetPoint("TOPLEFT", 252, -186)
 
     local arrowValue = options:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     arrowValue:SetPoint("RIGHT", arrowPlus, "LEFT", -6, 0)
@@ -922,14 +936,14 @@ local function BuildOptions()
         ResetHUD()
         RefreshOptions()
     end)
-    reset:SetPoint("TOPLEFT", 16, -168)
+    reset:SetPoint("TOPLEFT", 16, -216)
 
     local center = MakeButton(options, 110, "Center", CenterHUD)
-    center:SetPoint("TOPLEFT", 164, -168)
+    center:SetPoint("TOPLEFT", 164, -216)
 
-    MakeHeader(options, "World map", -206)
-    Add(MakeCheck(options, "Your coordinates", "map"), -228)
-    Add(MakeCheck(options, "Cursor coordinates", "cursor"), -252)
+    MakeHeader(options, "World map", -254)
+    Add(MakeCheck(options, "Your coordinates", "map"), -276)
+    Add(MakeCheck(options, "Cursor coordinates", "cursor"), -300)
 
     -- comandos a la derecha
     local divider = options:CreateTexture(nil, "ARTWORK")
@@ -953,11 +967,11 @@ local function BuildOptions()
     commands:SetSpacing(3)
     commands:SetTextColor(unpack(S.colors.text))
     commands:SetText(table.concat(lines, "\n"))
-    options:SetHeight(math.max(366, commands:GetStringHeight() + 80))
+    options:SetHeight(math.max(414, commands:GetStringHeight() + 80))
 
-    MakeHeader(options, "Minimap", -288)
-    Add(MakeCheck(options, "Waypoint on the minimap", "minimap"), -310)
-    Add(MakeCheck(options, "Minimap button", "button", function() UpdateMinimapButton() end), -334)
+    MakeHeader(options, "Minimap", -336)
+    Add(MakeCheck(options, "Waypoint on the minimap", "minimap"), -358)
+    Add(MakeCheck(options, "Minimap button", "button", function() UpdateMinimapButton() end), -382)
 end
 
 local function ToggleOptions()
@@ -1081,6 +1095,10 @@ local function PrintState()
 
     local playerMap = CurrentMapID()
     SayRaw(format("  your map: %s (%s)", tostring(playerMap), ZoneName(playerMap)))
+
+    local _, instance = IsInInstance()
+    SayRaw(format("  instance: %s | box: %s", tostring(instance),
+        not db.hud and "off" or (HiddenHere() and "hidden here" or "on")))
 
     local shown = map and map:IsShown() and map.GetMapID and map:GetMapID()
     SayRaw(format("  open map: %s", shown and format("%s (%s)", tostring(shown), ZoneName(shown)) or "closed"))
@@ -1210,6 +1228,9 @@ local function HandleSlash(msg)
         db.hud = not db.hud
         RefreshHUD()
         Say(db.hud and "box shown." or "box hidden.")
+        if db.hud and HiddenHere() then
+            Say("the box stays hidden here; it comes back when you leave.")
+        end
 
     elseif cmd == "way" then
         HandleWay(string.sub(text, 5))
@@ -1217,6 +1238,16 @@ local function HandleSlash(msg)
     elseif cmd == "lock" then
         db.locked = not db.locked
         Say(db.locked and "box locked." or "box unlocked: drag it with the left button.")
+
+    elseif cmd == "bg" then
+        db.hideBG = not db.hideBG
+        RefreshHUD()
+        Say(db.hideBG and "hide in battlegrounds: on." or "hide in battlegrounds: off.")
+
+    elseif cmd == "dungeons" or cmd == "dungeon" then
+        db.hideDungeons = not db.hideDungeons
+        RefreshHUD()
+        Say(db.hideDungeons and "hide in dungeons and raids: on." or "hide in dungeons and raids: off.")
 
     elseif cmd == "button" then
         db.button = not db.button
