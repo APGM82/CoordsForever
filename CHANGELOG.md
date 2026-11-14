@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.12
+
+- The box can hide itself in battlegrounds, and in dungeons and raids, so it doesn't sit on top of the battleground score. Two new ticks in the options, off by default, or `/coords bg` and `/coords dungeons`.
+- `/way status` now says whether you are in an instance and whether the box is hidden there.
+
 ## 1.11
 
 - New look shared with the other Forever addons: the options window is dark glass with bronze lines, buttons have relief and a gold edge under the mouse, and ticks are gold. The on-screen box has a bronze edge.
